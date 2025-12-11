@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff, TrendingUp, Clock, Users, BarChart3, Zap, Target, Moon, Sun, CheckCircle2, ArrowRight } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff, TrendingUp, Clock, Users, BarChart3, Zap, Target, Moon, Sun, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,7 +19,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Detectar tema inicial
+  // Detectar tema inicial e verificar configuração do Supabase
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme');
@@ -27,6 +28,14 @@ export default function LoginPage() {
       
       if (isDark) {
         document.documentElement.classList.add('dark');
+      }
+
+      // Verificar se Supabase está configurado
+      const isConfigured = isSupabaseConfigured();
+      setSupabaseConfigured(isConfigured);
+      
+      if (!isConfigured) {
+        console.log('🔧 Supabase não configurado. Configure em: Configurações → Integrações → Supabase');
       }
     }
   }, []);
@@ -48,6 +57,13 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Verificar se Supabase está configurado
+    if (!supabaseConfigured) {
+      setError('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,7 +97,18 @@ export default function LoginPage() {
         router.push('/onboarding');
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao processar');
+      console.error('Erro de autenticação:', err);
+      
+      // Mensagens de erro mais específicas
+      if (err.message?.includes('Invalid login credentials')) {
+        setError('❌ Email ou senha incorretos. Verifique suas credenciais.');
+      } else if (err.message?.includes('Email not confirmed')) {
+        setError('📧 Confirme seu email antes de fazer login. Verifique sua caixa de entrada.');
+      } else if (err.message?.includes('User already registered')) {
+        setError('👤 Este email já está cadastrado. Faça login ou recupere sua senha.');
+      } else {
+        setError(`❌ ${err.message || 'Erro ao processar. Verifique se o Supabase está configurado corretamente.'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -89,6 +116,13 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError('');
+
+    // Verificar se Supabase está configurado
+    if (!supabaseConfigured) {
+      setError('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -107,7 +141,8 @@ export default function LoginPage() {
 
       // O redirecionamento será automático pelo Supabase
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login com Google');
+      console.error('Erro no login com Google:', err);
+      setError(`❌ ${err.message || 'Erro ao fazer login com Google. Verifique se o OAuth está configurado no Supabase.'}`);
       setLoading(false);
     }
   };
@@ -115,6 +150,12 @@ export default function LoginPage() {
   const handleForgotPassword = async () => {
     if (!formData.email) {
       alert('Por favor, digite seu email no campo acima primeiro.');
+      return;
+    }
+
+    // Verificar se Supabase está configurado
+    if (!supabaseConfigured) {
+      alert('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
       return;
     }
 
@@ -126,9 +167,10 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      alert('Email de recuperação enviado! Verifique sua caixa de entrada.');
+      alert('✅ Email de recuperação enviado! Verifique sua caixa de entrada.');
     } catch (err: any) {
-      alert(err.message || 'Erro ao enviar email de recuperação');
+      console.error('Erro ao enviar email de recuperação:', err);
+      alert(`❌ ${err.message || 'Erro ao enviar email de recuperação'}`);
     } finally {
       setLoading(false);
     }
@@ -321,6 +363,32 @@ export default function LoginPage() {
 
         {/* Coluna Direita - Formulário de Login */}
         <div className="w-full lg:w-[480px] flex flex-col justify-center">
+          {/* Alerta de Configuração do Supabase */}
+          {!supabaseConfigured && (
+            <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500/50 backdrop-blur-md shadow-xl">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/30 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-orange-300" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-orange-200 font-bold mb-2 text-lg">🔧 Configuração Necessária</h4>
+                  <p className="text-sm text-orange-100/90 leading-relaxed mb-3">
+                    Para habilitar autenticação, você precisa configurar o Supabase:
+                  </p>
+                  <div className="bg-black/20 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-orange-100 font-mono">
+                      <strong>Configurações do Projeto</strong> → <strong>Integrações</strong> → <strong>Supabase</strong>
+                    </p>
+                  </div>
+                  <div className="space-y-2 text-sm text-orange-100/80">
+                    <p>✅ Conecte sua conta Supabase via OAuth</p>
+                    <p>✅ Ou adicione manualmente URL e Anon Key</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card Principal */}
           <div className="bg-white/10 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 dark:border-white/10 shadow-2xl">
             {/* Logo e Título */}
@@ -359,7 +427,7 @@ export default function LoginPage() {
             {/* Botão Google */}
             <button
               onClick={handleGoogleLogin}
-              disabled={loading}
+              disabled={loading || !supabaseConfigured}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-gray-50 transition-all flex items-center justify-center gap-3 font-medium text-gray-700 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mb-6"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -430,7 +498,8 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                      disabled={!supabaseConfigured}
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Esqueceu a senha?
                     </button>
@@ -464,7 +533,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !supabaseConfigured}
                 className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:from-blue-600 hover:to-purple-700 focus:ring-4 focus:ring-blue-500/50 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {loading ? (
