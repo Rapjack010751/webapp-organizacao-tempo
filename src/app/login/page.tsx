@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff, TrendingUp, Clock, Users, BarChart3, Zap, Target, Moon, Sun, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { LogIn, UserPlus, Mail, Lock, User, Eye, EyeOff, TrendingUp, Clock, Users, BarChart3, Zap, Target, Moon, Sun, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,7 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Detectar tema inicial e verificar configuração do Supabase
+  // Detectar tema inicial
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme');
@@ -29,9 +28,6 @@ export default function LoginPage() {
       if (isDark) {
         document.documentElement.classList.add('dark');
       }
-
-      // Verificar se Supabase está configurado
-      setSupabaseConfigured(isSupabaseConfigured());
     }
   }, []);
 
@@ -49,44 +45,9 @@ export default function LoginPage() {
     }
   };
 
-  // Função para verificar se usuário completou onboarding
-  const checkUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle(); // Usa maybeSingle() em vez de single() para aceitar 0 ou 1 resultado
-
-      // Se não encontrou perfil (data é null), retorna false
-      if (!data) {
-        return false;
-      }
-
-      // Se encontrou erro diferente de "não encontrado", loga
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erro ao buscar perfil:', error);
-        return false;
-      }
-
-      // Se o perfil existe e tem nome, considera onboarding completo
-      return data.name ? true : false;
-    } catch (err) {
-      console.error('Erro ao verificar perfil:', err);
-      return false;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // Verificar se Supabase está configurado
-    if (!supabaseConfigured) {
-      setError('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar autenticação.');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -99,19 +60,9 @@ export default function LoginPage() {
 
         if (error) throw error;
 
-        if (data.user) {
-          // Verificar se usuário completou onboarding no banco de dados
-          const hasProfile = await checkUserProfile(data.user.id);
-          
-          if (hasProfile) {
-            // Usuário tem perfil completo, redirecionar para dashboard
-            router.push('/');
-            router.refresh();
-          } else {
-            // Usuário não completou onboarding, redirecionar para onboarding
-            router.push('/onboarding');
-          }
-        }
+        // Verificar se já completou onboarding
+        const onboardingCompleted = localStorage.getItem('onboarding_completed');
+        router.push(onboardingCompleted ? '/' : '/onboarding');
       } else {
         // Registro com email/senha
         const { data, error } = await supabase.auth.signUp({
@@ -130,8 +81,7 @@ export default function LoginPage() {
         router.push('/onboarding');
       }
     } catch (err: any) {
-      console.error('Erro de autenticação:', err);
-      setError(err.message || 'Erro ao processar. Verifique se o Supabase está configurado corretamente.');
+      setError(err.message || 'Erro ao processar');
     } finally {
       setLoading(false);
     }
@@ -139,20 +89,13 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError('');
-
-    // Verificar se Supabase está configurado
-    if (!supabaseConfigured) {
-      setError('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar login com Google.');
-      return;
-    }
-
     setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/onboarding`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -164,8 +107,7 @@ export default function LoginPage() {
 
       // O redirecionamento será automático pelo Supabase
     } catch (err: any) {
-      console.error('Erro no login com Google:', err);
-      setError(err.message || 'Erro ao fazer login com Google. Verifique se o Supabase está configurado corretamente.');
+      setError(err.message || 'Erro ao fazer login com Google');
       setLoading(false);
     }
   };
@@ -173,12 +115,6 @@ export default function LoginPage() {
   const handleForgotPassword = async () => {
     if (!formData.email) {
       alert('Por favor, digite seu email no campo acima primeiro.');
-      return;
-    }
-
-    // Verificar se Supabase está configurado
-    if (!supabaseConfigured) {
-      alert('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar recuperação de senha.');
       return;
     }
 
@@ -192,7 +128,6 @@ export default function LoginPage() {
 
       alert('Email de recuperação enviado! Verifique sua caixa de entrada.');
     } catch (err: any) {
-      console.error('Erro ao enviar email de recuperação:', err);
       alert(err.message || 'Erro ao enviar email de recuperação');
     } finally {
       setLoading(false);
@@ -210,13 +145,13 @@ export default function LoginPage() {
       {/* Botão de Tema - Posição Fixa no Canto Superior Direito */}
       <button
         onClick={toggleTheme}
-        className="fixed top-6 right-6 z-50 p-3 rounded-xl bg-white/10 dark:bg-white/5 backdrop-blur-md shadow-lg hover:shadow-xl border border-white/20 dark:border-white/10 transition-all transform hover:scale-110 active:scale-95"
+        className="fixed top-6 right-6 z-50 p-3 rounded-xl bg-white/10 dark:bg-gray-800/80 backdrop-blur-md shadow-lg hover:shadow-xl border border-white/20 dark:border-gray-700 transition-all transform hover:scale-110 active:scale-95"
         aria-label="Alternar tema"
       >
         {isDarkMode ? (
           <Sun className="w-6 h-6 text-yellow-400" />
         ) : (
-          <Moon className="w-6 h-6 text-blue-300" />
+          <Moon className="w-6 h-6 text-indigo-400" />
         )}
       </button>
 
@@ -386,22 +321,6 @@ export default function LoginPage() {
 
         {/* Coluna Direita - Formulário de Login */}
         <div className="w-full lg:w-[480px] flex flex-col justify-center">
-          {/* Alerta de Configuração do Supabase */}
-          {!supabaseConfigured && (
-            <div className="mb-6 p-4 rounded-xl bg-orange-500/20 border border-orange-500/50 backdrop-blur-md">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="text-orange-300 font-semibold mb-1">Configuração Necessária</h4>
-                  <p className="text-sm text-orange-200/90 leading-relaxed">
-                    Para habilitar autenticação, configure o Supabase em:<br />
-                    <strong>Configurações do Projeto → Integrações → Supabase</strong>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Card Principal */}
           <div className="bg-white/10 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 dark:border-white/10 shadow-2xl">
             {/* Logo e Título */}
@@ -440,7 +359,7 @@ export default function LoginPage() {
             {/* Botão Google */}
             <button
               onClick={handleGoogleLogin}
-              disabled={loading || !supabaseConfigured}
+              disabled={loading}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-gray-50 transition-all flex items-center justify-center gap-3 font-medium text-gray-700 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mb-6"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -511,8 +430,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      disabled={!supabaseConfigured}
-                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
                     >
                       Esqueceu a senha?
                     </button>
@@ -546,7 +464,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || !supabaseConfigured}
+                disabled={loading}
                 className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:from-blue-600 hover:to-purple-700 focus:ring-4 focus:ring-blue-500/50 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {loading ? (

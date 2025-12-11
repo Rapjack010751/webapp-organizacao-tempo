@@ -1,30 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Variáveis de ambiente do Supabase com validação
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Validação das variáveis de ambiente
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Variáveis de ambiente do Supabase não configuradas. Configure em Configurações do Projeto -> Integrações -> Supabase');
-}
+// Variáveis de ambiente do Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Cliente Supabase para uso no cliente
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  }
-);
-
-// Função helper para verificar se Supabase está configurado
-export const isSupabaseConfigured = () => {
-  return Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://placeholder.supabase.co');
-};
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Tipos do banco de dados
 export type Database = {
