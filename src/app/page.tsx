@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { Activity, FilterOptions } from '@/lib/types';
 import { storage } from '@/lib/storage';
@@ -15,8 +14,8 @@ import { Navbar } from '@/components/custom/navbar';
 import { Plus, Filter, Calendar, TrendingUp, AlertCircle, CheckCircle2, Users, User } from 'lucide-react';
 
 export default function Home() {
-  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -36,12 +35,21 @@ export default function Home() {
 
   // Verificar autenticação
   useEffect(() => {
-    if (!auth.isAuthenticated()) {
-      router.push('/login');
-    } else {
-      setIsAuthenticated(true);
-    }
-  }, [router]);
+    const checkAuth = () => {
+      const authenticated = auth.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      setIsLoading(false);
+      
+      if (!authenticated) {
+        // Redirecionar para login após um pequeno delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Carregar atividades
   useEffect(() => {
@@ -136,8 +144,25 @@ export default function Home() {
     setFilters({});
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400">Redirecionando para login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
