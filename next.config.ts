@@ -191,9 +191,22 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   
-  // Configuração experimental para melhor performance
+  // Configuração experimental para melhor performance e estabilidade HMR
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+  
+  // Configuração de webpack para melhorar HMR
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      // Melhorar estabilidade do HMR
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/node_modules', '**/.next'],
+      };
+    }
+    return config;
   },
   
   // Headers CORS para permitir acesso da plataforma Lasy

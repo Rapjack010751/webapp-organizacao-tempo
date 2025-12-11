@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/auth';
 import { Activity, FilterOptions } from '@/lib/types';
 import { storage } from '@/lib/storage';
 import { ActivityForm } from '@/components/custom/activity-form';
@@ -9,9 +11,12 @@ import { PomodoroTimer } from '@/components/custom/pomodoro-timer';
 import { GroupSelector } from '@/components/custom/group-selector';
 import { GroupManagementModal } from '@/components/custom/group-management-modal';
 import { NotificationCenter } from '@/components/custom/notification-center';
+import { Navbar } from '@/components/custom/navbar';
 import { Plus, Filter, Calendar, TrendingUp, AlertCircle, CheckCircle2, Users, User } from 'lucide-react';
 
 export default function Home() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -29,13 +34,23 @@ export default function Home() {
     groupTasks: 0,
   });
 
+  // Verificar autenticação
+  useEffect(() => {
+    if (!auth.isAuthenticated()) {
+      router.push('/login');
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
   // Carregar atividades
   useEffect(() => {
-    loadActivities();
-    // Atualizar a cada 10 segundos para simular real-time
-    const interval = setInterval(loadActivities, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (isAuthenticated) {
+      loadActivities();
+      const interval = setInterval(loadActivities, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   // Aplicar filtros
   useEffect(() => {
@@ -51,15 +66,12 @@ export default function Home() {
   const applyFilters = () => {
     let filtered = activities;
 
-    // Filtro de grupo/pessoal
     if (selectedGroupId) {
       filtered = filtered.filter(a => a.groupId === selectedGroupId);
     } else {
-      // Mostrar apenas pessoais quando nenhum grupo selecionado
       filtered = filtered.filter(a => !a.groupId);
     }
 
-    // Aplicar outros filtros
     if (filters.status) {
       filtered = filtered.filter(a => a.status === filters.status);
     }
@@ -121,11 +133,17 @@ export default function Home() {
 
   const handleSelectGroup = (groupId: string | undefined) => {
     setSelectedGroupId(groupId);
-    setFilters({}); // Limpar outros filtros ao mudar de grupo
+    setFilters({});
   };
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      <Navbar />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="mb-8 flex items-center justify-between">
