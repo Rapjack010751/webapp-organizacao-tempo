@@ -5,7 +5,7 @@ export type Category = 'trabalho' | 'pessoal' | 'estudos' | 'saude' | 'outros';
 export type Status = 'pendente' | 'concluida';
 export type GroupType = 'familiar' | 'empresarial' | 'projetos' | 'pessoal';
 export type UserRole = 'owner' | 'admin' | 'member';
-export type NotificationType = 'member_joined' | 'task_created' | 'task_completed' | 'pomodoro_started' | 'task_assigned';
+export type NotificationType = 'member_joined' | 'task_created' | 'task_completed' | 'pomodoro_started' | 'task_assigned' | 'invite_created' | 'member_removed' | 'role_changed';
 
 // Usuário
 export interface User {
@@ -25,16 +25,27 @@ export interface Group {
   ownerId: string;
   inviteCode: string;
   members: GroupMember[];
+  settings: GroupSettings;
   createdAt: string;
   updatedAt: string;
+}
+
+// Configurações do grupo
+export interface GroupSettings {
+  allowMembersToInvite: boolean;
+  allowMembersToCreateTasks: boolean;
+  requireApprovalForTasks: boolean;
+  maxMembers: number;
 }
 
 // Membro do grupo
 export interface GroupMember {
   userId: string;
   userName: string;
+  userEmail?: string;
   role: UserRole;
   joinedAt: string;
+  invitedBy?: string;
 }
 
 // Atividade/Tarefa
@@ -56,6 +67,21 @@ export interface Activity {
   createdBy: string; // ID do usuário que criou
   assignees: string[]; // IDs dos usuários atribuídos
   isShared: boolean; // Se é compartilhada ou pessoal
+  
+  // Campos adicionais
+  tags?: string[];
+  attachments?: string[];
+  comments?: ActivityComment[];
+}
+
+// Comentário em atividade
+export interface ActivityComment {
+  id: string;
+  activityId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string;
 }
 
 // Notificação
@@ -69,6 +95,7 @@ export interface Notification {
   userId: string;
   read: boolean;
   createdAt: string;
+  metadata?: Record<string, any>;
 }
 
 // Estatísticas do Dashboard
@@ -80,6 +107,8 @@ export interface DashboardStats {
   progressPercentage: number;
   personalTasks: number;
   groupTasks: number;
+  weeklyProgress?: number;
+  monthlyProgress?: number;
 }
 
 // Opções de filtro
@@ -91,6 +120,7 @@ export interface FilterOptions {
   groupId?: string;
   assignee?: string;
   scope?: 'personal' | 'groups' | 'all';
+  tags?: string[];
 }
 
 // Estado do Pomodoro
@@ -101,13 +131,44 @@ export interface PomodoroState {
   userId: string;
   activityId?: string;
   groupId?: string;
+  sessionCount?: number;
 }
 
 // Convite
 export interface Invite {
+  id: string;
   code: string;
   groupId: string;
   groupName: string;
-  expiresAt: string;
   createdBy: string;
+  createdByName: string;
+  expiresAt: string;
+  maxUses?: number;
+  currentUses: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+// Histórico de atividades do grupo
+export interface GroupActivityLog {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  action: 'member_joined' | 'member_left' | 'member_removed' | 'role_changed' | 'task_created' | 'task_completed' | 'task_deleted' | 'settings_changed';
+  description: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+// Permissões
+export interface Permissions {
+  canCreateTasks: boolean;
+  canEditTasks: boolean;
+  canDeleteTasks: boolean;
+  canInviteMembers: boolean;
+  canRemoveMembers: boolean;
+  canChangeRoles: boolean;
+  canManageSettings: boolean;
+  canDeleteGroup: boolean;
 }
