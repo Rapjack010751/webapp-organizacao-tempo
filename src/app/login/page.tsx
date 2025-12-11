@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,12 +31,7 @@ export default function LoginPage() {
       }
 
       // Verificar se Supabase está configurado
-      const isConfigured = isSupabaseConfigured();
-      setSupabaseConfigured(isConfigured);
-      
-      if (!isConfigured) {
-        console.log('🔧 Supabase não configurado. Configure em: Configurações → Integrações → Supabase');
-      }
+      setSupabaseConfigured(isSupabaseConfigured());
     }
   }, []);
 
@@ -54,13 +49,41 @@ export default function LoginPage() {
     }
   };
 
+  // Função para verificar se usuário completou onboarding
+  const checkUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle(); // Usa maybeSingle() em vez de single() para aceitar 0 ou 1 resultado
+
+      // Se não encontrou perfil (data é null), retorna false
+      if (!data) {
+        return false;
+      }
+
+      // Se encontrou erro diferente de "não encontrado", loga
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar perfil:', error);
+        return false;
+      }
+
+      // Se o perfil existe e tem nome, considera onboarding completo
+      return data.name ? true : false;
+    } catch (err) {
+      console.error('Erro ao verificar perfil:', err);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     // Verificar se Supabase está configurado
     if (!supabaseConfigured) {
-      setError('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
+      setError('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar autenticação.');
       return;
     }
 
@@ -76,9 +99,19 @@ export default function LoginPage() {
 
         if (error) throw error;
 
-        // Verificar se já completou onboarding
-        const onboardingCompleted = localStorage.getItem('onboarding_completed');
-        router.push(onboardingCompleted ? '/' : '/onboarding');
+        if (data.user) {
+          // Verificar se usuário completou onboarding no banco de dados
+          const hasProfile = await checkUserProfile(data.user.id);
+          
+          if (hasProfile) {
+            // Usuário tem perfil completo, redirecionar para dashboard
+            router.push('/');
+            router.refresh();
+          } else {
+            // Usuário não completou onboarding, redirecionar para onboarding
+            router.push('/onboarding');
+          }
+        }
       } else {
         // Registro com email/senha
         const { data, error } = await supabase.auth.signUp({
@@ -98,17 +131,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Erro de autenticação:', err);
-      
-      // Mensagens de erro mais específicas
-      if (err.message?.includes('Invalid login credentials')) {
-        setError('❌ Email ou senha incorretos. Verifique suas credenciais.');
-      } else if (err.message?.includes('Email not confirmed')) {
-        setError('📧 Confirme seu email antes de fazer login. Verifique sua caixa de entrada.');
-      } else if (err.message?.includes('User already registered')) {
-        setError('👤 Este email já está cadastrado. Faça login ou recupere sua senha.');
-      } else {
-        setError(`❌ ${err.message || 'Erro ao processar. Verifique se o Supabase está configurado corretamente.'}`);
-      }
+      setError(err.message || 'Erro ao processar. Verifique se o Supabase está configurado corretamente.');
     } finally {
       setLoading(false);
     }
@@ -119,7 +142,7 @@ export default function LoginPage() {
 
     // Verificar se Supabase está configurado
     if (!supabaseConfigured) {
-      setError('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
+      setError('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar login com Google.');
       return;
     }
 
@@ -129,7 +152,7 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -142,7 +165,7 @@ export default function LoginPage() {
       // O redirecionamento será automático pelo Supabase
     } catch (err: any) {
       console.error('Erro no login com Google:', err);
-      setError(`❌ ${err.message || 'Erro ao fazer login com Google. Verifique se o OAuth está configurado no Supabase.'}`);
+      setError(err.message || 'Erro ao fazer login com Google. Verifique se o Supabase está configurado corretamente.');
       setLoading(false);
     }
   };
@@ -155,7 +178,7 @@ export default function LoginPage() {
 
     // Verificar se Supabase está configurado
     if (!supabaseConfigured) {
-      alert('⚠️ Supabase não configurado. Acesse: Configurações do Projeto → Integrações → Supabase');
+      alert('Configure o Supabase em Configurações do Projeto → Integrações → Supabase para habilitar recuperação de senha.');
       return;
     }
 
@@ -167,10 +190,10 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      alert('✅ Email de recuperação enviado! Verifique sua caixa de entrada.');
+      alert('Email de recuperação enviado! Verifique sua caixa de entrada.');
     } catch (err: any) {
       console.error('Erro ao enviar email de recuperação:', err);
-      alert(`❌ ${err.message || 'Erro ao enviar email de recuperação'}`);
+      alert(err.message || 'Erro ao enviar email de recuperação');
     } finally {
       setLoading(false);
     }
@@ -365,25 +388,15 @@ export default function LoginPage() {
         <div className="w-full lg:w-[480px] flex flex-col justify-center">
           {/* Alerta de Configuração do Supabase */}
           {!supabaseConfigured && (
-            <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500/50 backdrop-blur-md shadow-xl">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-orange-500/30 flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="w-6 h-6 text-orange-300" />
-                </div>
+            <div className="mb-6 p-4 rounded-xl bg-orange-500/20 border border-orange-500/50 backdrop-blur-md">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="text-orange-200 font-bold mb-2 text-lg">🔧 Configuração Necessária</h4>
-                  <p className="text-sm text-orange-100/90 leading-relaxed mb-3">
-                    Para habilitar autenticação, você precisa configurar o Supabase:
+                  <h4 className="text-orange-300 font-semibold mb-1">Configuração Necessária</h4>
+                  <p className="text-sm text-orange-200/90 leading-relaxed">
+                    Para habilitar autenticação, configure o Supabase em:<br />
+                    <strong>Configurações do Projeto → Integrações → Supabase</strong>
                   </p>
-                  <div className="bg-black/20 rounded-lg p-3 mb-3">
-                    <p className="text-sm text-orange-100 font-mono">
-                      <strong>Configurações do Projeto</strong> → <strong>Integrações</strong> → <strong>Supabase</strong>
-                    </p>
-                  </div>
-                  <div className="space-y-2 text-sm text-orange-100/80">
-                    <p>✅ Conecte sua conta Supabase via OAuth</p>
-                    <p>✅ Ou adicione manualmente URL e Anon Key</p>
-                  </div>
                 </div>
               </div>
             </div>

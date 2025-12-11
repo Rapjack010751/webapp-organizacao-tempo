@@ -1,63 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Variáveis de ambiente do Supabase
+// Variáveis de ambiente do Supabase com validação
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Validação rigorosa das credenciais
-const isValidSupabaseUrl = (url: string): boolean => {
-  if (!url) return false;
-  try {
-    const urlObj = new URL(url);
-    // URL válida do Supabase deve terminar com .supabase.co
-    return urlObj.hostname.endsWith('.supabase.co');
-  } catch {
-    return false;
-  }
-};
-
-const isValidSupabaseKey = (key: string): boolean => {
-  if (!key) return false;
-  // Anon key do Supabase é um JWT que começa com "eyJ"
-  return key.startsWith('eyJ') && key.length > 100;
-};
-
-// Verificar se credenciais são válidas
-const hasValidCredentials = isValidSupabaseUrl(supabaseUrl) && isValidSupabaseKey(supabaseAnonKey);
-
-// Log de aviso se credenciais inválidas
-if (!hasValidCredentials) {
-  console.warn('⚠️ Supabase não configurado corretamente.');
-  console.warn('📋 Para configurar:');
-  console.warn('   1. Acesse: Configurações do Projeto → Integrações → Supabase');
-  console.warn('   2. Ou conecte sua conta Supabase via OAuth');
-  console.warn('');
-  console.warn('🔗 URL deve ser: https://seu-projeto.supabase.co');
-  console.warn('🔑 Anon Key deve começar com: eyJ...');
+// Validação das variáveis de ambiente
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('⚠️ Variáveis de ambiente do Supabase não configuradas. Configure em Configurações do Projeto -> Integrações -> Supabase');
 }
 
-// Cliente Supabase - só cria se credenciais válidas
-export const supabase = hasValidCredentials
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : createClient(
-      'https://placeholder.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
+// Cliente Supabase para uso no cliente
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  }
+);
 
 // Função helper para verificar se Supabase está configurado
-export const isSupabaseConfigured = (): boolean => {
-  return hasValidCredentials;
+export const isSupabaseConfigured = () => {
+  return Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://placeholder.supabase.co');
 };
 
 // Tipos do banco de dados

@@ -3,17 +3,58 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, BookOpen, Dumbbell, Coffee, Target, TrendingUp, Calendar, Clock, CheckCircle2, Zap, Sun, Moon } from 'lucide-react';
+import { getUserPreferences } from '@/lib/supabase';
 
 export default function DashboardPessoalPage() {
   const router = useRouter();
   const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const preferences = localStorage.getItem('user_preferences');
-    if (preferences) {
-      setUserPreferences(JSON.parse(preferences));
+    async function loadPreferences() {
+      try {
+        const userId = localStorage.getItem('user_id');
+        
+        if (userId) {
+          // Tentar buscar do Supabase primeiro
+          const preferences = await getUserPreferences(userId);
+          if (preferences) {
+            setUserPreferences(preferences);
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // Fallback para localStorage
+        const localPreferences = localStorage.getItem('user_preferences');
+        if (localPreferences) {
+          setUserPreferences(JSON.parse(localPreferences));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar preferências:', error);
+        // Fallback para localStorage em caso de erro
+        const localPreferences = localStorage.getItem('user_preferences');
+        if (localPreferences) {
+          setUserPreferences(JSON.parse(localPreferences));
+        }
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadPreferences();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando suas preferências...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
