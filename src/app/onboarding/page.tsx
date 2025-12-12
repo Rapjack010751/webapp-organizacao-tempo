@@ -155,7 +155,16 @@ export default function OnboardingPage() {
       // Salvar preferências no localStorage
       localStorage.setItem('onboarding_completed', 'true');
       localStorage.setItem('user_preferences', JSON.stringify(quizData));
-      router.push('/');
+      
+      // Redirecionar para o dashboard correto baseado na escolha do usuário
+      if (quizData.usage === 'empresarial') {
+        router.push('/dashboard-empresarial');
+      } else if (quizData.usage === 'pessoal') {
+        router.push('/dashboard-pessoal');
+      } else {
+        // Fallback para página principal caso não tenha escolhido
+        router.push('/');
+      }
     } else {
       setCurrentStep(currentStep + 1);
     }

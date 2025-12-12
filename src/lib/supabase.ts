@@ -133,6 +133,76 @@ export type Database = {
           updated_at?: string;
         };
       };
+      user_preferences: {
+        Row: {
+          id: string;
+          user_id: string;
+          usage_type: 'personal' | 'business';
+          industry: string | null;
+          team_size: string | null;
+          goals: string[] | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          usage_type: 'personal' | 'business';
+          industry?: string | null;
+          team_size?: string | null;
+          goals?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          usage_type?: 'personal' | 'business';
+          industry?: string | null;
+          team_size?: string | null;
+          goals?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
+
+// Função para buscar preferências do usuário
+export async function getUserPreferences(userId: string) {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    console.error('Erro ao buscar preferências:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Função para salvar preferências do usuário
+export async function saveUserPreferences(preferences: {
+  user_id: string;
+  usage_type: 'personal' | 'business';
+  industry?: string;
+  team_size?: string;
+  goals?: string[];
+}) {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .upsert(preferences, { onConflict: 'user_id' })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao salvar preferências:', error);
+    return null;
+  }
+
+  return data;
+}
